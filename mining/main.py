@@ -2,6 +2,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
+from prefect import flow, task
 import os
 
 os.environ["PATH"] += r"C:/SeleniumDrivers"
@@ -10,10 +11,10 @@ os.environ["PATH"] += r"C:/SeleniumDrivers"
 edge_options = webdriver.EdgeOptions()
 edge_options.use_chromium = True  # Utiliza el motor Chromium de Edge
 
+
 # *-----------------------------INICIO COMPUTRABAJO SCPRAPING---------------------------------------#
-def get_job_computrabajo(
-    key_word: str, location: str = "Colombia", pag_count: int = 10
-):
+@task(name="scraped-data", retries=2, retry_delay_seconds=3)
+def get_job_computrabajo(key_word: str, pag_count: int = 10):
     """
     Obtiene datos de ofertas de trabajo de Computrabajo para una palabra clave y ubicación específicas.
 
@@ -28,7 +29,7 @@ def get_job_computrabajo(
     scraped_data = []  # Inicializar una lista vacía para almacenar los datos scrapeados
 
     for page_num in range(1, pag_count + 1):
-        url = f"https://co.computrabajo.com/trabajo-de-{key_word}-en-{location}?p={page_num}"
+        url = f"https://co.computrabajo.com/trabajo-de-{key_word}?p={page_num}"
         browser.get(url)
         browser.implicitly_wait(30)
         app = browser.find_elements(By.CLASS_NAME, "box_offer")
@@ -90,42 +91,27 @@ def computrabajo_scraper(app: list):  # sourcery skip: use-contextlib-suppress
     return scraped_data  # Retornar la lista con todos los datos scrapeados
 
 
-# *-----------------------------FIN DE COMPUTRABAJO SCPRAING---------------------------------#
+@flow(name="computrabajo_scraping_flow", log_prints=True)
+def scraped_computrabajo(key_word: str = "Python", pag_count: int = 15, browser=None):
+    """
+    Realiza el scraping de ofertas de trabajo en Computrabajo.
 
-# *--------------------------------INICO INDEED SCPRAING-------------------------------------#
+    Parámetros:
+        - key_word (str, opcional): La palabra clave para la búsqueda de trabajo. Por defecto es "Python".
+        - pag_count (int, opcional): El número de páginas a obtener. Por defecto es 15.
+        - browser: La instancia del navegador web utilizada para el scraping.
 
-
-def get_job_indeed(key_word: str, location: str = "Colombia"):
-    url = f"https://co.indeed.com/jobs?q={key_word}&l={location}"
-    browser.get(url)
-    browser.implicitly_wait(30)
-    return browser.find_elements(By.CSS_SELECTOR, "div.job_seen_beacon")
-
-
-def indeed_scraper(app: list):  # sourcery skip: use-contextlib-suppress
-    scraped_data = []
-    for item in app:
-        title = item.find_element(By.TAG_NAME, "h2").text
-        company = None
-        location = None
-        try:
-            company = item.find_element(By.CSS_SELECTOR, "div.heading6 company_location tapItem-gutter companyInfo \
-                                        span.companyName").text 
-            location = item.find_element(By.CSS_SELECTOR, "div.heading6 company_location tapItem-gutter companyInfo \
-                                        span.companyLocation").text 
-            
-        except NoSuchElementException:
-            pass
-        print(title)
-        print(company)
-        print(location)
-        print("---------------------------")
+    Esta función realiza el scraping de ofertas de trabajo en Computrabajo utilizando
+    una instancia de navegador web proporcionada. Los resultados del scraping se imprimen
+    en la consola y se pueden acceder a través del flujo de Prefect.
+    """
+    result_computrabajo = get_job_computrabajo(key_word=key_word, pag_count=pag_count, browser=browser)
+    print(result_computrabajo)
 
 
+# *-----------------------------FIN DE COMPUTRABAJO SCPRAPING---------------------------------#
 
 if __name__ == "__main__":
     browser = webdriver.Edge(options=edge_options)
-    result_computrabajo = get_job_computrabajo(key_word="python")
-    #indeed_scraper(app=get_job_indeed('python'))
-    print(result_computrabajo)
+    scraped_computrabajo(browser=browser)
     browser.quit()
