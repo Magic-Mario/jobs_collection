@@ -6,6 +6,9 @@ import os
 
 os.environ["PATH"] += r"C:/SeleniumDrivers"
 
+# Configura el controlador de Microsoft Edge
+edge_options = webdriver.EdgeOptions()
+edge_options.use_chromium = True  # Utiliza el motor Chromium de Edge
 
 # *-----------------------------INICIO COMPUTRABAJO SCPRAPING---------------------------------------#
 def get_job_computrabajo(
@@ -117,7 +120,12 @@ def indeed_scraper(app: list):  # sourcery skip: use-contextlib-suppress
         print(company)
         print(location)
         print("---------------------------")
+
+
+
 if __name__ == "__main__":
-    browser = webdriver.Chrome()
-    #result_computrabajo = get_job_computrabajo(key_word="python")
-    indeed_scraper(app=get_job_indeed('python'))
+    browser = webdriver.Edge(options=edge_options)
+    result_computrabajo = get_job_computrabajo(key_word="python")
+    #indeed_scraper(app=get_job_indeed('python'))
+    print(result_computrabajo)
+    browser.quit()
